@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.BitSet;
 
@@ -37,7 +38,11 @@ public class TextMenu extends AppCompatActivity {
         colorViews = findViewById(R.id.displayColors_text);
         sendButton = findViewById(R.id.sendButton_text);
 
-        //connectedThread = MyApplication.getApplication().getCurrentConnectedThread();
+        connectedThread = MyApplication.getApplication().getCurrentConnectedThread();
+
+        if(connectedThread.getSocket().isConnected()) {
+            Toast.makeText(TextMenu.this, "Bluetooth in Text successfully connected", Toast.LENGTH_LONG).show();
+        }
 
         imgView.setDrawingCacheEnabled(true);
         imgView.buildDrawingCache(true);
@@ -63,16 +68,17 @@ public class TextMenu extends AppCompatActivity {
 
         sendButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
-                /*
-                BitSet temp = MyApplication.getApplication().getBitSet();
+                BitSet temp = connectedThread.getBitSet();
+                temp.set(8, 31, true);
                 byte[] RGB = temp.toByteArray();
                 RGB[1] = (byte) r;
                 RGB[2] = (byte) g;
                 RGB[3] = (byte) b;
                 BitSet fix = BitSet.valueOf(RGB);
                 connectedThread.write(fix);
+                connectedThread.setBitSet(fix);
 
-                 */
+                MyApplication.getApplication().setupConnectedThread(connectedThread);
                 Intent intent = new Intent((Context) TextMenu.this, MainActivity.class);
                 TextMenu.this.startActivity(intent);
             }
