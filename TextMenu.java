@@ -11,10 +11,12 @@ import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.BitSet;
 
 public class TextMenu extends AppCompatActivity {
@@ -22,6 +24,7 @@ public class TextMenu extends AppCompatActivity {
     TextView colorValues;
     View colorViews;
     Button sendButton;
+    EditText inputText;
     Bitmap bitmap;
     ConnectedThread connectedThread;
     int r;
@@ -37,12 +40,14 @@ public class TextMenu extends AppCompatActivity {
         colorValues = findViewById(R.id.displayValues_text);
         colorViews = findViewById(R.id.displayColors_text);
         sendButton = findViewById(R.id.sendButton_text);
+        inputText = findViewById(R.id.editText);
 
         connectedThread = MyApplication.getApplication().getCurrentConnectedThread();
 
         if(connectedThread.getSocket().isConnected()) {
             Toast.makeText(TextMenu.this, "Bluetooth in Text successfully connected", Toast.LENGTH_LONG).show();
         }
+
 
         imgView.setDrawingCacheEnabled(true);
         imgView.buildDrawingCache(true);
@@ -68,15 +73,42 @@ public class TextMenu extends AppCompatActivity {
 
         sendButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
+                String input = inputText.getText().toString();
+                byte[] inputByte = input.getBytes();
+                int inputSize = input.length();
+                String temp2 = "";
+
+                for(int i = 0; i < inputSize; i++){
+                    char c = input.charAt(i);
+                    int d = (int) c;
+                    //Toast.makeText(TextMenu.this, input + "is " + Integer.toString(d), Toast.LENGTH_LONG).show();
+                    if(d < 32 || d > 127){
+                        c = ' ';
+                    }
+                    temp2 += c;
+                }
+
                 BitSet temp = connectedThread.getBitSet();
-                temp.set(8, 31, true);
+                temp.set(8, 40, true);
                 byte[] RGB = temp.toByteArray();
                 RGB[1] = (byte) r;
                 RGB[2] = (byte) g;
                 RGB[3] = (byte) b;
+                RGB[4] = (byte) inputSize;
                 BitSet fix = BitSet.valueOf(RGB);
                 connectedThread.write(fix);
                 connectedThread.setBitSet(fix);
+
+                //Toast.makeText(TextMenu.this, input + "is " + inputDec, Toast.LENGTH_LONG).show();
+
+                Toast.makeText(TextMenu.this, input + " is " + temp2, Toast.LENGTH_LONG).show();
+
+                byte[] b = temp2.getBytes();
+                try {
+                    connectedThread.getMmOutStream().write(b);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
 
                 MyApplication.getApplication().setupConnectedThread(connectedThread);
                 Intent intent = new Intent((Context) TextMenu.this, MainActivity.class);
