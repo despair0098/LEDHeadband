@@ -17,6 +17,7 @@ import com.example.test.R.layout;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.util.BitSet;
 
 public final class MainActivity2 extends AppCompatActivity {
@@ -53,6 +54,9 @@ public final class MainActivity2 extends AppCompatActivity {
             public boolean onTouch(View v, MotionEvent event){
                 if(event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_MOVE){
                     bitmap = imgView.getDrawingCache();
+                    if(event.getX() >= bitmap.getWidth() || event.getY() >= bitmap.getHeight()){
+                        return true;
+                    }
                     int pixels = bitmap.getPixel((int)event.getX(), (int)event.getY());
 
                     r = Color.red(pixels);
@@ -72,13 +76,39 @@ public final class MainActivity2 extends AppCompatActivity {
             public final void onClick(View it) {
 
                 BitSet temp = connectedThread.getBitSet();
-                temp.set(8, 31, true);
+                if(connectedThread.getBlinkMode()){
+                    temp.set(0, false);
+                    temp.set(1, true);
+                    temp.set(2, false);
+                    connectedThread.setBlinkMode(false);
+                } else if(connectedThread.getMusicMode()){
+                    temp.set(0, true);
+                    temp.set(1, false);
+                    temp.set(2, true);
+                    connectedThread.setMusicMode(false);
+                } else {
+                    temp.set(1, 2, false);
+                    temp.set(0, true);
+                    connectedThread.setStaticMode(false);
+                }
+                temp.set(8, 440, true);
                 byte[] RGB = temp.toByteArray();
                 RGB[1] = (byte) r;
                 RGB[2] = (byte) g;
                 RGB[3] = (byte) b;
+
+                for(int l = 4; l < RGB.length; l++){
+                    if(RGB[l] == -1){
+                        RGB[l] = 0;
+                    }
+                }
+
+                try {
+                    connectedThread.getMmOutStream().write(RGB);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 BitSet fix = BitSet.valueOf(RGB);
-                connectedThread.write(fix);
                 connectedThread.setBitSet(fix);
 
 
