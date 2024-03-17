@@ -1,6 +1,8 @@
 package com.example.test;
 
 import android.app.Application;
+import android.media.MediaRecorder;
+import android.provider.MediaStore;
 
 import java.util.BitSet;
 
@@ -8,16 +10,13 @@ public class MyApplication extends Application
 {
     private static MyApplication sInstance;
     ConnectedThread connectedThread = null;
+    Thread temp;
 
-    BitSet ans;
 
 
     public static MyApplication getApplication() {
         return sInstance;
     }
-
-    //public  void setupConnectedThread() {
-    //}
 
     public void onCreate() {
         super.onCreate();
@@ -34,10 +33,9 @@ public class MyApplication extends Application
         return connectedThread;
     }
 
-    public void setBitSet(BitSet b){
-        this.ans = b;
-    }
-
-    public BitSet getBitSet(){return ans;}
+    public Thread getThread(){return temp;}
+    public void setThread(Thread t){temp = t;}
+    public boolean pressed = false;
+    public Runnable updateRun;
 
 }

@@ -1,6 +1,7 @@
 package com.example.test;
 
 import android.bluetooth.BluetoothSocket;
+import android.media.MediaRecorder;
 import android.os.Handler;
 import android.util.Log;
 
@@ -21,6 +22,7 @@ public class ConnectedThread extends Thread{
     private boolean blinkMode = false;
     private boolean textMode = false;
     private boolean musicMode = false;
+    boolean[] buttonsPressed = {false, false, false, false, false, false, false};
 
     public OutputStream getMmOutStream() {
         return mmOutStream;
@@ -42,6 +44,14 @@ public class ConnectedThread extends Thread{
     public boolean getBlinkMode(){return blinkMode;}
     public boolean getStaticMode(){return staticMode;}
     public boolean getMusicMode(){return musicMode;}
+
+    public boolean[] getButtonsPressed() {
+        return buttonsPressed;
+    }
+
+    public void setButtonsPressed(boolean[] b){buttonsPressed = b;}
+
+
     public ConnectedThread(BluetoothSocket socket, BitSet b) {
         mmSocket = socket;
         OutputStream tmpOut = null;
@@ -57,27 +67,5 @@ public class ConnectedThread extends Thread{
         //Input and Output streams members of the class
         //We wont use the Output stream of this project
         mmOutStream = tmpOut;
-    }
-
-    public String getValueRead(){
-        return valueRead;
-    }
-
-    public void write(BitSet input) {
-        byte[] bytes = input.toByteArray(); //converts entered String into bytes
-        try {
-            mmOutStream.write(bytes);
-        } catch (IOException e) {
-            Log.e("Send Error","Unable to send message",e);
-        }
-    }
-
-    // Call this method from the main activity to shut down the connection.
-    public void cancel() {
-        try {
-            mmSocket.close();
-        } catch (IOException e) {
-            Log.e(TAG, "Could not close the connect socket", e);
-        }
     }
 }

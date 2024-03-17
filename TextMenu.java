@@ -57,6 +57,12 @@ public class TextMenu extends AppCompatActivity {
             public boolean onTouch(View v, MotionEvent event){
                 if(event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_MOVE){
                     bitmap = imgView.getDrawingCache();
+                    if(event.getX() >= bitmap.getWidth() || event.getY() >= bitmap.getHeight()){
+                        return true;
+                    }
+                    if(event.getX() < 0 || event.getY() < 0){
+                        return true;
+                    }
                     int pixels = bitmap.getPixel((int)event.getX(), (int)event.getY());
 
                     r = Color.red(pixels);
@@ -80,7 +86,6 @@ public class TextMenu extends AppCompatActivity {
                 for(int i = 0; i < inputSize; i++){
                     char c = input.charAt(i);
                     int d = (int) c;
-                    //Toast.makeText(TextMenu.this, input + "is " + Integer.toString(d), Toast.LENGTH_LONG).show();
                     if(d < 32 || d > 127){
                         c = ' ';
                     }
@@ -105,10 +110,6 @@ public class TextMenu extends AppCompatActivity {
                 RGB[4] = (byte) inputSize;
 
                 BitSet fix = BitSet.valueOf(RGB);
-                //connectedThread.write(fix);
-                //connectedThread.setBitSet(fix);
-
-                //Toast.makeText(TextMenu.this, input + "is " + inputDec, Toast.LENGTH_LONG).show();
 
                 Toast.makeText(TextMenu.this, input + " is " + temp2, Toast.LENGTH_LONG).show();
 

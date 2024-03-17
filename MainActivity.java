@@ -3,6 +3,8 @@ package com.example.test;
 import static java.lang.Math.log10;
 
 import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -10,6 +12,8 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,6 +29,7 @@ import android.widget.Toast;
 import androidx.activity.ComponentActivity;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 
 import com.example.test.R.id;
 import com.example.test.R.layout;
@@ -43,10 +48,8 @@ public final class MainActivity extends ComponentActivity {
     UUID arduinoUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); //We declare a default UUID to create the global variable
 
     // MAC-address of Adafruit Bluefruit EZ-Link module (you must edit this line)
-    private static String address = "98:D3:02:96:6A:C4";
-    //private static String address = "98:D3:02:96:C2:23";
-    //98D3:02:96C223
-    //98:D3:02:96:C2:23
+    //private static String address = "98:D3:02:96:6A:C4";
+    private static String address = "98:D3:02:96:C2:23";
 
     BluetoothAdapter bluetoothAdapter;
     BluetoothManager bluetoothManager;
@@ -56,45 +59,6 @@ public final class MainActivity extends ComponentActivity {
     private BluetoothSocket btSocket;
 
     private OutputStream outStream;
-
-    //float volume = 10000;
-    //private SoundDiscView soundDiscView;
-    //private MyMediaRecorder mRecorder;
-    //private static final int msgWhat = 0x1001;
-    //private static final int refreshTime = 100;
-    //SoundDiscView discView;
-    /*private Handler handler = new Handler(Looper.getMainLooper()) {
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            if (this.hasMessages(msgWhat)) {
-                return;
-            }
-            volume = mRecorder.getMaxAmplitude();  //获取声压值
-            if(volume > 0 && volume < 1000000) {
-                World.setDbCount(20 * (float)(Math.log10(volume)));  //将声压值转为分贝值
-                float test = 20 * (float)(Math.log10(volume));
-                Log.d("Testing", String.valueOf(test));
-                soundDiscView.refresh();
-            }
-            handler.sendEmptyMessageDelayed(msgWhat, refreshTime);
-        }
-    };
-
-     */
-
-
-    //MediaRecorder mRecorder;
-    //Thread runner;
-    //private static double mEMA = 0.0;
-    //static final private double EMA_FILTER = 0.6;
-
-    //Runnable updater;
-    //Handler mHandler;
-
-
-    //ConnectedThread connectedThread;
-    //Instances of the Android UI elements that will will use during the execution of the APP
     TextView btReadings;
     TextView decibelReadings;
     Button musicButton;
@@ -103,8 +67,20 @@ public final class MainActivity extends ComponentActivity {
     Button rgbButton;
     Button staticButton;
     Button offButton;
-
+    Button colorButton;
+    //Button decibelButton;
     BitSet answer = new BitSet(440);
+    MediaRecorder mRecorder;
+    Thread runner;
+    private static double mEMA = 0.0;
+    static final private double EMA_FILTER = 0.6;
+    Runnable updater = new Runnable(){
+        public void run(){
+            updateTv();
+        };
+    };
+
+    Handler mHandler = new Handler(Looper.getMainLooper());
 
     ConnectedThread testing;
 
@@ -119,15 +95,41 @@ public final class MainActivity extends ComponentActivity {
         textButton = (Button) findViewById(R.id.textButton);
         staticButton = (Button) findViewById(R.id.staticButton);
         offButton = (Button) findViewById(R.id.offButton);
+        colorButton = (Button) findViewById(id.colorButton);
+        //decibelButton = (Button) findViewById(id.decibelButton);
 
         btReadings = findViewById(id.searchResult);
-
-        //discView = findViewById(id.soundDiscView);
-        //mRecorder = new MyMediaRecorder();
-
-        //answer = MyApplication.getApplication().getBitSet();
+        decibelReadings = findViewById(id.decibelView);
 
         testing = MyApplication.getApplication().getCurrentConnectedThread();
+
+
+        if(testing != null) {
+            boolean[] t = testing.getButtonsPressed();
+            if (t[0]) {//OFF
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else if (t[1]) {//STATIC
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else if (t[2]) {//BLINK
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else if (t[3]) {//RGB
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else if (t[4]) {//TEXT
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else if (t[5]) {//MUSIC
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else if (t[6]) {//COLOR
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+            } else {
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+            }
+        }
 
 
         if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_DENIED) {
@@ -136,19 +138,40 @@ public final class MainActivity extends ComponentActivity {
                 return;
             }
         }
+
+        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_DENIED) {
+            if (Build.VERSION.SDK_INT > 31) {
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 10);
+                return;
+            }
+        }
+
+        if (runner == null)
+        {
+            runner = new Thread(){
+                public void run()
+                {
+                    while (runner != null)
+                    {
+                        try
+                        {
+                            Thread.sleep(1000);
+                            Log.i("Noise", "Tock");
+                        } catch (InterruptedException e) { };
+                        mHandler.post(updater);
+                    }
+                }
+            };
+            runner.start();
+            Log.d("Noise", "start runner()");
+        } else {
+            runner = MyApplication.getApplication().getThread();
+            updater = MyApplication.getApplication().updateRun;
+        }
+
         bluetoothManager = getSystemService(BluetoothManager.class);
         bluetoothAdapter = bluetoothManager.getAdapter();
         bluetoothDevice = bluetoothAdapter.getRemoteDevice(address);
-
-        /*
-        if(testing != null) {
-            btSocket = testing.getSocket();
-            //btSocket.connect();
-            if (btSocket.isConnected()) {
-                outStream = testing.getMmOutStream();
-            }
-        }
-         */
 
         if(testing == null){
             new Thread(() -> {
@@ -194,8 +217,8 @@ public final class MainActivity extends ComponentActivity {
 
         staticButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
-                //testing = new ConnectedThread(btSocket, answer);
                 MyApplication.getApplication().setupConnectedThread(testing);
+                buttonPress("STATIC");
                 sendCommand("STATIC");
                 Intent intent = new Intent((Context) MainActivity.this, MainActivity2.class);
                 MainActivity.this.startActivity(intent);
@@ -204,8 +227,8 @@ public final class MainActivity extends ComponentActivity {
 
         blinkButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
-                //testing = new ConnectedThread(btSocket, answer);
                 MyApplication.getApplication().setupConnectedThread(testing);
+                buttonPress("BLINK");
                 sendCommand("BLINK");
                 Intent intent = new Intent((Context) MainActivity.this, MainActivity2.class);
                 MainActivity.this.startActivity(intent);
@@ -214,8 +237,8 @@ public final class MainActivity extends ComponentActivity {
 
         textButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
-                //testing = new ConnectedThread(btSocket, answer);
                 MyApplication.getApplication().setupConnectedThread(testing);
+                buttonPress("TEXT");
                 sendCommand("TEXT");
                 Intent intent = new Intent((Context) MainActivity.this, TextMenu.class);
                 MainActivity.this.startActivity(intent);
@@ -223,6 +246,7 @@ public final class MainActivity extends ComponentActivity {
         }));
         rgbButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
+                buttonPress("RGB");
                 sendCommand("RGB");
             }
         }));
@@ -230,6 +254,7 @@ public final class MainActivity extends ComponentActivity {
         musicButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
                 MyApplication.getApplication().setupConnectedThread(testing);
+                buttonPress("MUSIC");
                 sendCommand("MUSIC");
                 Intent intent = new Intent((Context) MainActivity.this, MainActivity2.class);
                 MainActivity.this.startActivity(intent);
@@ -237,47 +262,25 @@ public final class MainActivity extends ComponentActivity {
         }));
         offButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
             public final void onClick(View it) {
+                buttonPress("OFF");
                 sendCommand("OFF");
             }
         }));
 
-        /*
-         updater = new Runnable(){
+        colorButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
+            public final void onClick(View it) {
+                buttonPress("COLOR");
+                sendCommand("COLOR");
+            }
+        }));
 
-            public void run(){
-                updateTv();
-            };
-        };
-
-        mHandler = new Handler();
-
-        if (runner == null)
-        {
-            runner = new Thread(){
-                public void run()
-                {
-                    while (runner != null)
-                    {
-                        try
-                        {
-                            Thread.sleep(1000);
-                            Log.i("Noise", "Tock");
-                        } catch (InterruptedException e) { };
-                        mHandler.post(updater);
-                    }
-                }
-            };
-            runner.start();
-            Log.d("Noise", "start runner()");
-        }
-
-         */
-
-    }
-
-
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        //decibelButton.setOnClickListener((View.OnClickListener) (new View.OnClickListener() {
+        //    public final void onClick(View it) {
+                //MyApplication.getApplication().setupConnectedThread(testing);
+                //Intent intent = new Intent((Context) MainActivity.this, DecibelMenu.class);
+                //MainActivity.this.startActivity(intent);
+        //    }
+        //}));
     }
 
     private void sendCommand(String str) {
@@ -293,6 +296,7 @@ public final class MainActivity extends ComponentActivity {
                 answer.set(0, true);
                 answer.set(1, true);
                 answer.set(2, false);
+
                 break;
             case "STATIC"://1
                 testing.setStaticMode(true);
@@ -309,8 +313,31 @@ public final class MainActivity extends ComponentActivity {
             case "OFF":// 0
                 answer.set(0, 2, false);
                 break;
+            case "COLOR"://6
+                answer.set(0, false);
+                answer.set(1, true);
+                answer.set(2, true);
+                break;
         }
-        if(str == "RGB" || str == "OFF") {
+        if(str == "RGB" || str == "COLOR") {
+            try {
+                testing.setBitSet(answer);
+                byte[] command = answer.toByteArray();
+                command[1] = (byte)255;
+                command[2] = (byte)255;
+                command[3] = (byte)255;
+                for (int i = 4; i < 55; i++) {
+                    if (command[i] == -1) {
+                        command[i] = 0;
+                    }
+                }
+                String c = answer.toString();
+                outStream.write(command);
+                Log.d(TAG, c);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else if( str == "OFF" ){
             try {
                 testing.setBitSet(answer);
                 byte[] command = answer.toByteArray();
@@ -319,7 +346,6 @@ public final class MainActivity extends ComponentActivity {
                         command[i] = 0;
                     }
                 }
-                //testing.setBitSet(BitSet.valueOf(command));
                 String c = answer.toString();
                 outStream.write(command);
                 Log.d(TAG, c);
@@ -328,95 +354,91 @@ public final class MainActivity extends ComponentActivity {
             }
         }
     }
-    /*
-    private void startListenAudio() {
-        handler.sendEmptyMessageDelayed(msgWhat, refreshTime);
+
+    private void buttonPress(String str) {
+        int index = 0;
+        switch (str) {
+            case "OFF":// 0
+                index = 0;
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+            case "STATIC"://1
+                index = 1;
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+            case "BLINK"://2
+                index = 2;
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+            case "RGB"://3
+                index = 3;
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+            case "TEXT"://4
+                index = 4;
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+            case "MUSIC"://5
+                index = 5;
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+            case "COLOR"://6
+                index = 6;
+                colorButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(9, 235, 43)));
+                musicButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                textButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                rgbButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                blinkButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                offButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                staticButton.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+                break;
+        }
+        boolean[] temp = testing.buttonsPressed;
+        for(int i = 0; i < temp.length; i++){
+            if(i == index){
+                temp[i] = true;
+            } else {
+                temp[i] = false;
+            }
+        }
+        testing.buttonsPressed = temp;
     }
-
-    /**
-     * 开始记录
-     * @param fFile
-     */
-    /*
-    public void startRecord(File fFile, Context c){
-        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT > 31) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, 3);
-                return;
-            }
-        }
-
-        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT > 31) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
-                return;
-            }
-        }
-        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT > 31) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 5);
-                return;
-            }
-        }
-        try{
-            mRecorder.setMyRecAudioFile(fFile);
-            if (mRecorder.startRecorder(c)) {
-                startListenAudio();
-            }else{
-                Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show();
-            }
-        }catch(Exception e){
-            Toast.makeText(this, "Recorder is occupied or recording privileges are disabled", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
-        }
-    }
-
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT > 31) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, 3);
-                return;
-            }
-        }
-
-        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT > 31) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
-                return;
-            }
-        }
-        if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT > 31) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 5);
-                return;
-            }
-        }
-        soundDiscView = (SoundDiscView) findViewById(R.id.soundDiscView);
-        File file = FileUtil.createFile("temp.amr");
-        if (file != null) {
-            Log.v("file", "file =" + file.getAbsolutePath());
-            startRecord(file, MainActivity.this);
-        } else {
-            Toast.makeText(getApplicationContext(), "Failed to create a file", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    /**
-     * 停止记录
-     */
-    /*
-    @Override
-    protected void onPause() {
-        super.onPause();
-        mRecorder.delete(); //停止记录并删除录音文件
-        handler.removeMessages(msgWhat);
-    }
-    */
-
-    /*
     public void onResume()
     {
         super.onResume();
@@ -432,11 +454,18 @@ public final class MainActivity extends ComponentActivity {
     public void startRecorder(){
         if (mRecorder == null)
         {
+            if(ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_DENIED) {
+                if (Build.VERSION.SDK_INT > 31) {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, 3);
+                    return;
+                }
+            }
+
             mRecorder = new MediaRecorder(MainActivity.this);
             mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
             mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
             mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-            mRecorder.setOutputFile("/dev/null");
+            mRecorder.setOutputFile(MainActivity.this.getFilesDir().getAbsolutePath() + "/test.3gp");
             try
             {
                 mRecorder.prepare();
@@ -452,8 +481,6 @@ public final class MainActivity extends ComponentActivity {
             }catch (java.lang.SecurityException e) {
                 android.util.Log.e("[Monkey]", "SecurityException: " + android.util.Log.getStackTraceString(e));
             }
-
-            //mEMA = 0.0;
         }
 
     }
@@ -466,30 +493,64 @@ public final class MainActivity extends ComponentActivity {
     }
 
     public void updateTv(){
-        btReadings.setText(Double.toString((getAmplitudeEMA())) + " dB");
+        if(mRecorder != null) {
+            double temp = soundDb(1.1);
+            decibelReadings.setText("Decibel: " + Double.toString(temp) + " dB");
+            //Log.i("Noise", "Giving notif rn");
+            if(temp >= 88.0){
+                //makeNotification(soundDb(Math.pow(10, -12)));
+                Log.i("Noise", "Giving notif rn");
+                makeNotification(temp);
+                //Toast.makeText(DecibelMenu.this, "You are receiving too high decibel! It's around " + Double.toString(temp) + " dB now!", Toast.LENGTH_LONG).show();
+            }
+        }
     }
     public double soundDb(double ampl){
-        return  20 * Math.log10(getAmplitudeEMA() / ampl);
+        return  20 * Math.log10(getAmplitude() / ampl);
     }
     public double getAmplitude() {
-        if (mRecorder != null)
-            return  (mRecorder.getMaxAmplitude());
-        else
+        if (mRecorder != null) {
+            int temp = mRecorder.getMaxAmplitude();
+            //Log.i("Noise", "Recorder is not null now");
+            //Log.i("Noise", "Max Amplitude double: " + Double.toString(Double.valueOf(temp)));
+            return Double.valueOf(temp);
+        }else {
+            //Log.i("Noise", "Recorder is null now");
             return 0;
-
+        }
     }
     public double getAmplitudeEMA() {
         double amp = getAmplitude();
+        Log.i("Noise", "Amp: " + Double.toString(amp));
         mEMA = EMA_FILTER * amp + (1.0 - EMA_FILTER) * mEMA;
+        //return amp;
         return mEMA;
     }
+    public void makeNotification(double decibel){
+        String channelID = "CHANNEL_NOTIFICATION";
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), channelID);
+        builder.setSmallIcon(R.drawable.decibel_notifications);
+        builder.setContentTitle("HIGH DECIBEL WARNING");
+        builder.setContentText("You are receiving too high decibel! It's around " + Double.toString(decibel) + " dB now!" );
+        builder.setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
-     */
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+            NotificationChannel notificationChannel = notificationManager.getNotificationChannel(channelID);
+            if(notificationChannel == null){
+                int importance = NotificationManager.IMPORTANCE_HIGH;
+                notificationChannel = new NotificationChannel(channelID, "DECIBEL WARNING", importance);
+                notificationChannel.setLightColor(Color.GREEN);
+                notificationChannel.enableVibration(true);
+                notificationManager.createNotificationChannel(notificationChannel);
+            }
+        }
+        notificationManager.notify(0, builder.build());
+
+    }
     // used when the app is closed
     @Override
     protected void onDestroy() {
-        //handler.removeMessages(msgWhat);
-        //mRecorder.delete();
         super.onDestroy();
         if (btSocket != null) {
             try {

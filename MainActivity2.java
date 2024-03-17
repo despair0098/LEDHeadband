@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
@@ -57,6 +58,9 @@ public final class MainActivity2 extends AppCompatActivity {
                     if(event.getX() >= bitmap.getWidth() || event.getY() >= bitmap.getHeight()){
                         return true;
                     }
+                    if(event.getX() < 0 || event.getY() < 0){
+                        return true;
+                    }
                     int pixels = bitmap.getPixel((int)event.getX(), (int)event.getY());
 
                     r = Color.red(pixels);
@@ -66,8 +70,6 @@ public final class MainActivity2 extends AppCompatActivity {
                     String hex = "#" + Integer.toHexString(pixels);
                     colorViews.setBackgroundColor(Color.rgb(r,g,b));
                     colorValues.setText("RGB: " + r + ", " + g + ", " + b + "\nHex: " + hex);
-
-                    //connectedThread.write(hex);
                 }
                 return true;
             }
